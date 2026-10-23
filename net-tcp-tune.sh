@@ -8,32 +8,14 @@
 # 1. 正式版本迭代时修改 SCRIPT_VERSION，并更新版本备注（保留最新5条）
 # 2. 临时热修/不发版时只修改 SCRIPT_LAST_UPDATE，用于快速识别脚本是否已更新
 #=============================================================================
+# v5.4.19 更新: Xray安装/更新(菜单13→1/11)可选版本：默认稳定版v26.3.27，可选官方最新版并提示客户端要求、需确认；已装更新版本时默认保持，可降回稳定版 (by Eric86777)
+# v5.4.18 更新: 修复新机Xray安装被目录权限误拦(750 root:xray 按实际运行账号判断穿越)；Xray核心默认固定v26.3.27，XRAY_VERSION_OVERRIDE可覆盖 (by Eric86777)
 # v5.4.17 更新: 启动恢复先预检依赖和有效运行环境；隔离代理/DNS/IPv6操作，完整回滚共享恢复组件；修复Xray多实例更新、SS卸载及Snell快照误报 (by Eric86777)
 # v5.4.16 更新: 修复libexec0700导致启动保护203/EXEC；补齐DNS依赖；兼容官方Xray运行用户、配置/数据权限及UMask，失败安装重试补齐开机自启 (by Eric86777)
 # v5.4.15 更新: 已有项目安装进入菜单自动幂等迁移启动恢复；Snell/Xray新装、更新及已最新版路径统一补齐，失败停止并报告，空机器浏览和只读CLI不迁移 (by Eric86777)
-# v5.4.14 更新: 修复 resolved/D-Bus 启动依赖环，DNS失败返回失败并重试；Snell/Xray等待DNS，有限恢复Snell错误解析器；IPv6禁用前检查ifupdown冲突 (by Eric86777)
-# v5.4.13 更新: Xray 卸载改为内置固定范围事务，校验服务联动/目录归属/挂载与 Snell 基线，失败可恢复、残缺安装可检查；
-#   保留公共日志模板及共享依赖，增加只读/继续/恢复入口。菜单启动不再自动清理 MTU 或迁移 CF，依赖仅在安装/更新时准备 (by Eric86777)
-# v5.4.12 更新: 修复 Sub-Store 新版 CORS 白名单兼容——安装可配置页面来源，隧道向导自动追加实际域名；更新保留已有白名单，
-#   缺失时按实例隧道识别域名并备份迁移；拉取失败不停止旧容器，更新后带 Origin 校验接口，失败不再误报成功 (by Eric86777)
-# v5.4.11 更新: 修复功能3配置被镜像预置参数文件覆盖——sysctl.d 按文件名顺序加载、同名参数后加载者生效，旧文件名
-#   99-bbr-ultimate.conf 排在字母开头的文件之前(如商家镜像预置的 local.conf)，其中的同名参数在重启或 sysctl --system 后
-#   盖掉功能3的取值，而冲突检查只识别数字开头的文件名。现配置文件改名为 zzz-bbr-ultimate.conf 保证最后加载；重新执行
-#   功能3时自动迁移并删除旧文件，卸载功能同时清理新旧两个文件名；/etc/sysctl.conf 中与功能3同名的参数由只注释6项
-#   扩为全部注释(sysctl --system 总是最后加载该文件)。注意：此后功能3的配置优先于 sysctl.d 下其它文件 (by Eric86777)
-# v5.4.10 更新: 功能3/功能6/31菜单调优逻辑修正4项——①带宽档位消除「带宽变大缓冲区反而变小」的断点：实测值离预设档不足10%时
-#   按该档计算(千兆口实测9xx原落入500-1000档，亚太12MB/美欧48MB，现按1Gbps档16MB/64MB)，各区间取值均不低于旧版，9个预设档
-#   取值不变；②tcp_max_tw_buckets 不再固定写5000(在≥2G内存机器上低于内核默认值，内核文档要求不得调低)，改为
-#   max(5000, 内核默认值)，31菜单 Reality 终极优化同步修正；③功能6不再向 Realm 配置写入 resolve/nodelay/reuse_port
-#   (非 Realm 配置项，从未生效)，监听改IPv4/句柄上限/conntrack 不变；④功能3完成提示按内核模块版本区分 BBR v3 与
-#   系统自带 BBR，不再在非 v3 内核上显示「BBR v3 已生效」 (by Eric86777)
-# v5.4.9 更新: 修复菜单33端口流量用满后状态仍显示🟢——读 nft 配额时按 "over N bytes" 解析文本，但 nft 会把能被1024整除的值
-#   换单位打印(如 over 102400 mbytes)，到量时内核还把 used 封顶成阈值(同样打印成 mbytes)，两个数都取不到，
-#   「🔴配额用尽」「🟡即将用尽」从不显示(实际限流与每月重置不受影响)；现改读 nft -j 的原始字节，读不到配额对象时
-#   仍按计数器估算 (by Eric86777)
 
-SCRIPT_VERSION="5.4.17"
-SCRIPT_LAST_UPDATE="修复新机Xray启动权限、官方用户迁移与失败重试开机自启"
+SCRIPT_VERSION="5.4.19"
+SCRIPT_LAST_UPDATE="Xray安装/更新可选版本"
 #=============================================================================
 
 #=============================================================================
@@ -12532,7 +12514,13 @@ run_xinchendahai_xray() {
 
 # ==============================================================================
 # Xray VLESS-Reality & Shadowsocks 2022 多功能管理脚本
-# 版本: Final v2.9.6
+# 版本: Final v2.9.8
+# 更新日志 (v2.9.8):
+# - 安装/更新可选核心版本：默认稳定版，官方最新版附客户端要求说明并需输入 y 确认。
+# - 已装版本高于稳定版时默认保持不动，可在菜单 11 降回稳定版；VLESS 链接带 support-x25519mlkem768=true。
+# 更新日志 (v2.9.7):
+# - 配置父目录检查改按 Xray 实际运行账号判断能否穿越，兼容官方 750 root:xray，不再强求 o+x。
+# - 核心默认固定 v26.3.27(新装及菜单11)；XRAY_VERSION_OVERRIDE=vX.Y.Z 或 latest 可覆盖。
 # 更新日志 (v2.9.6):
 # - 官方多实例更新先逐目标预检、启动前同步运行身份；兼容新旧geodata动作。
 # - 安装登记与卸载安全校验分离，卸载兼容SS/双协议及官方日志轮转。
@@ -12552,12 +12540,142 @@ run_xinchendahai_xray() {
 set -euo pipefail
 
 # --- 全局常量 ---
-readonly XRAY_SCRIPT_VERSION="Final v2.9.6"
+readonly XRAY_SCRIPT_VERSION="Final v2.9.8"
 readonly xray_config_path="/usr/local/etc/xray/config.json"
 readonly xray_binary_path="/usr/local/bin/xray"
 readonly xray_root_home="$(getent passwd 0 | cut -d: -f6)"
 readonly xray_subscription_path="${xray_root_home}/xray_subscription_info.txt"
 readonly xray_install_script_url="https://github.com/XTLS/Xray-install/raw/main/install-release.sh"
+# Xray 核心版本策略：安装/更新时默认稳定版，菜单可选官方最新版(带客户端要求说明并需确认)。
+# 原因：v26.10.21 起 REALITY 拒绝不带 X25519MLKEM768 的握手，而 mihomo 默认不带，
+#       旧客户端(如 mihomo v1.19.30)连接超时；客户端升级到 mihomo v1.19.31+ 并导入带
+#       support-x25519mlkem768=true 的链接后可连。
+# 跳过菜单指定版本:  XRAY_VERSION_OVERRIDE=v26.10.21 bbr（可降级）
+# 跟随官方最新:      XRAY_VERSION_OVERRIDE=latest bbr
+readonly XRAY_PINNED_VERSION="v26.3.27"
+
+# 输出要安装的版本(带 v 前缀)；输出为空表示跟随官方最新版；格式非法返回 1
+xray_target_version() {
+    local want="${XRAY_VERSION_OVERRIDE:-$XRAY_PINNED_VERSION}"
+    case "$want" in latest|"") return 0 ;; esac
+    if ! [[ "$want" =~ ^v?[0-9]+(\.[0-9]+){1,3}$ ]]; then
+        printf '%s\n' "XRAY_VERSION_OVERRIDE 格式无效: ${want}（示例 v26.3.27 或 latest）" >&2
+        return 1
+    fi
+    printf 'v%s\n' "${want#v}"
+}
+
+# 菜单选定的核心版本(带 v 前缀)；为空时 run_core_install 按 xray_target_version 决定
+xray_chosen_version=""
+
+# a 是否高于 b（版本号可带 v 前缀）
+xray_version_gt() {
+    local a="${1#v}" b="${2#v}"
+    [[ -n "$a" && -n "$b" && "$a" != "$b" ]] &&
+        [[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" == "$a" ]]
+}
+
+# 输出官方最新正式版(带 v 前缀)；网络失败或格式异常时输出为空
+xray_fetch_latest_version() {
+    local tag
+    tag=$(curl -fsS --max-time 10 https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null |
+        jq -r '.tag_name // empty' 2>/dev/null) || tag=""
+    [[ "$tag" =~ ^v[0-9]+(\.[0-9]+){1,3}$ ]] && printf '%s\n' "$tag"
+    return 0
+}
+
+# 安装(install)/更新(update)前选择核心版本，结果写入 xray_chosen_version。
+# 默认稳定版 XRAY_PINNED_VERSION；已装版本高于稳定版时默认保持不动；
+# 返回 2 表示保持当前版本不动(仅 update)；设置了 XRAY_VERSION_OVERRIDE 时不弹菜单。
+xray_choose_version() {
+    local mode="$1" current="${2#v}" pinned="${XRAY_PINNED_VERSION#v}" latest="" choice confirm
+    local -a options=()
+    xray_chosen_version=""
+    if [[ -n "${XRAY_VERSION_OVERRIDE:-}" ]]; then
+        xray_chosen_version=$(xray_target_version) || return 1
+        info "按 XRAY_VERSION_OVERRIDE 指定 Xray 版本: ${cyan}${xray_chosen_version:-官方最新版}${none}"
+        return 0
+    fi
+    latest=$(xray_fetch_latest_version); latest="${latest#v}"
+
+    # 选项：keep=保持当前  pinned=稳定版  latest=官方最新版
+    if [[ -n "$current" ]] && xray_version_gt "$current" "$pinned"; then
+        options=(keep pinned)
+        xray_version_gt "$latest" "$current" && options+=(latest)
+    else
+        options=(pinned)
+        xray_version_gt "$latest" "$pinned" && options+=(latest)
+    fi
+    if [[ ${#options[@]} -eq 1 ]]; then
+        [[ -z "$latest" ]] && warning "无法获取官方最新版本号，本次使用稳定版 ${pinned}。"
+        xray_chosen_version="v${pinned}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${cyan} 请选择要安装的 Xray 版本${none}"
+    [[ -n "$current" ]] && echo -e " 当前已安装: ${cyan}${current}${none}"
+    draw_divider
+    local i label
+    for i in "${!options[@]}"; do
+        case "${options[$i]}" in
+            keep) label="保持当前版本 ${current}（默认）" ;;
+            pinned)
+                if [[ "${options[0]}" == pinned ]]; then label="稳定版 ${pinned}（推荐，默认）"
+                else label="降回稳定版 ${pinned}"; fi
+                [[ "$current" == "$pinned" ]] && label="${label}，即当前版本"
+                ;;
+            latest) label="官方最新版 ${latest}（需客户端支持，见下方说明）" ;;
+        esac
+        printf "  ${green}%-2s${none} %s\n" "$((i + 1))." "$label"
+    done
+    draw_divider
+    if [[ " ${options[*]} " == *" latest "* ]]; then
+        echo -e "${yellow} ⚠ 选择官方最新版 ${latest} 前请确认：${none}"
+        echo "   · VLESS-Reality 客户端必须支持抗量子握手(X25519MLKEM768)："
+        echo "     Clash Party / Clash Verge 等 mihomo 内核需 v1.19.31 及以上，"
+        echo "     并重新导入新链接(菜单 15，链接带 support-x25519mlkem768=true)"
+        echo "   · 旧链接、旧版客户端、未更新的手机客户端会直接连不上"
+        echo "   · 新版的安全修复针对证书校验，只影响 TLS 出站、加密 DNS 等用法，"
+        echo "     本脚本生成的普通 VLESS-Reality / SS 节点用不上"
+        echo "   · 看不懂以上内容，直接回车使用默认选项"
+        draw_divider
+    fi
+    while true; do
+        if ! read -r -p " 请输入选择 [1-${#options[@]}，回车默认 1]: " choice; then choice=1; fi
+        choice="${choice:-1}"
+        [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )) && break
+        error "无效选项，请输入 1-${#options[@]}。"
+    done
+    case "${options[$((choice - 1))]}" in
+        keep)
+            if [[ "$mode" == update ]]; then return 2; fi
+            xray_chosen_version="v${current}" ;;
+        pinned) xray_chosen_version="v${pinned}" ;;
+        latest)
+            if ! read -r -p " 确认安装官方最新版 ${latest}？输入 y 确认，其他任意键取消: " confirm; then confirm=""; fi
+            if [[ "$confirm" == [yY] ]]; then
+                xray_chosen_version="v${latest}"
+            elif [[ "${options[0]}" == keep ]]; then
+                info "已取消，保持当前版本 ${current}。"
+                if [[ "$mode" == update ]]; then return 2; fi
+                xray_chosen_version="v${current}"
+            else
+                info "已取消，改用稳定版 ${pinned}。"
+                xray_chosen_version="v${pinned}"
+            fi ;;
+    esac
+    return 0
+}
+
+# 当前核心高于稳定版时提醒客户端要求
+xray_newer_version_notice() {
+    local installed
+    installed=$("$xray_binary_path" version 2>/dev/null | head -n 1 | awk '{print $2}') || installed=""
+    if [[ -n "$installed" ]] && xray_version_gt "$installed" "$XRAY_PINNED_VERSION"; then
+        warning "当前 Xray ${installed} 高于稳定版 ${XRAY_PINNED_VERSION#v}：VLESS-Reality 客户端需 mihomo v1.19.31 及以上，并使用菜单 15 的新链接，旧链接会连不上。"
+    fi
+}
 
 # --- 颜色定义 ---
 readonly red='\e[91m' green='\e[92m' yellow='\e[93m'
@@ -12968,14 +13086,48 @@ xray_sync_existing_config_owner() (
             unit="${unit}.service"; config="/usr/local/etc/xray/${instance}.json";;
         *) return 1;;
     esac
+    # 目录穿越以 Xray 服务实际运行账号为准：官方安装器创建的 750 root:xray
+    # 目录（xray 组可穿过、其他用户不可）是合法且更安全的权限，不能强求 o+x。
+    # 运行账号只在遇到无 o+x 的目录时才解析，常见 755 路径不额外查询 systemd。
+    local traverse_user="" traverse_uid="" traverse_resolved="" gid_member
+    xray_dir_traversable_by_runtime() {
+        local path="$1" d_owner d_group d_mode
+        if [ -z "$traverse_resolved" ]; then
+            traverse_resolved=1
+            if [ "$(command systemctl show "$unit" --property=LoadState --value 2>/dev/null)" = loaded ]; then
+                traverse_user=$(command systemctl show "$unit" --property=User --value 2>/dev/null) || traverse_user=""
+                traverse_user="${traverse_user:-root}"
+                if [[ "$traverse_user" =~ ^([a-zA-Z_][a-zA-Z0-9_.-]*\$?|[0-9]+)$ ]]; then
+                    traverse_uid=$(command id -u "$traverse_user" 2>/dev/null) || traverse_uid=""
+                    [[ "$traverse_uid" =~ ^[0-9]+$ ]] || { traverse_uid=""; traverse_user=""; }
+                else
+                    traverse_user=""
+                fi
+            fi
+        fi
+        [ -n "$traverse_uid" ] || return 1
+        [ "$traverse_uid" = 0 ] && return 0
+        read -r d_owner d_group d_mode < <(command stat -c '%u %g %a' -- "$path") || return 1
+        [[ "$d_mode" =~ ^[0-7]{3,4}$ ]] || return 1
+        if [ "$d_owner" = "$traverse_uid" ]; then
+            [ "$((8#$d_mode & 8#100))" -ne 0 ]; return
+        fi
+        for gid_member in $(command id -G "$traverse_user" 2>/dev/null); do
+            if [ "$gid_member" = "$d_group" ]; then
+                [ "$((8#$d_mode & 8#010))" -ne 0 ]; return
+            fi
+        done
+        [ "$((8#$d_mode & 8#001))" -ne 0 ]
+    }
     for directory in /usr /usr/local /usr/local/etc /usr/local/etc/xray; do
         [ ! -L "$directory" ] || { printf '%s\n' 'Xray 配置父目录为符号链接，拒绝启动。' >&2; return 1; }
         [ -e "$directory" ] || continue
         [ -d "$directory" ] || return 1
         read -r owner mode < <(command stat -c '%u %a' -- "$directory")
         [[ "$owner" = 0 && "$mode" =~ ^[0-7]{3,4}$ ]] &&
-            [ "$((8#$mode & 8#022))" -eq 0 ] && [ "$((8#$mode & 8#001))" -ne 0 ] || {
-            printf '%s\n' 'Xray 配置父目录不可信或新运行账号无法穿过，未继续安装。' >&2; return 1;
+            [ "$((8#$mode & 8#022))" -eq 0 ] &&
+            { [ "$((8#$mode & 8#001))" -ne 0 ] || xray_dir_traversable_by_runtime "$directory"; } || {
+            printf '%s\n' "Xray 配置父目录不可信（非root所有或他人可写），或 Xray 运行账号(${traverse_user:-未知})无法穿过: $directory" >&2; return 1;
         }
     done
     [ ! -L "$config" ] || { printf '%s\n' 'Xray 配置为符号链接，拒绝启动。' >&2; return 1; }
@@ -13115,14 +13267,25 @@ execute_official_script() {
 
 run_core_install() {
     ensure_xray_dependencies || return 1
-    info "正在下载并安装 Xray 核心..."
+    local target_version install_action="install"
+    if [[ -n "${xray_chosen_version:-}" ]]; then
+        target_version="$xray_chosen_version"
+    else
+        target_version=$(xray_target_version) || return 1
+    fi
+    if [[ -n "$target_version" ]]; then
+        install_action="install --version $target_version"
+        info "正在下载并安装 Xray 核心（版本 ${target_version#v}）..."
+    else
+        info "正在下载并安装 Xray 核心（官方最新版）..."
+    fi
     # Explicit installation owns this target even before the official installer
     # enables it. Install the guard before any installer-triggered start.
     if ! boot_recovery_migrate install xray.service; then
         error "Xray 启动恢复配置失败，未继续安装或更新。"
         return 1
     fi
-    if ! execute_official_script "install"; then
+    if ! execute_official_script "$install_action"; then
         error "Xray 核心安装失败！"
         return 1
     fi
@@ -13517,7 +13680,17 @@ add_vless_to_ss() {
     view_all_info
 }
 
+# 安装前选择核心版本；已装版本作为"保持当前版本"的依据
+xray_choose_install_version() {
+    local current=""
+    if [[ -x "$xray_binary_path" ]]; then
+        current=$("$xray_binary_path" version 2>/dev/null | head -n 1 | awk '{print $2}') || current=""
+    fi
+    xray_choose_version install "$current"
+}
+
 install_vless_only() {
+    xray_choose_install_version || return 1
     info "开始配置 VLESS-Reality..."
     local port uuid domain node_name
     prompt_for_vless_config port uuid domain node_name
@@ -13525,6 +13698,7 @@ install_vless_only() {
 }
 
 install_ss_only() {
+    xray_choose_install_version || return 1
     info "开始配置 Shadowsocks-2022..."
     local port password node_name
     prompt_for_ss_config port password node_name
@@ -13532,6 +13706,7 @@ install_ss_only() {
 }
 
 install_dual() {
+    xray_choose_install_version || return 1
     info "开始配置双协议 (VLESS-Reality + Shadowsocks-2022)..."
     local vless_port vless_uuid vless_domain vless_node_name ss_port ss_password ss_node_name
     prompt_for_vless_config vless_port vless_uuid vless_domain vless_node_name
@@ -13558,6 +13733,34 @@ update_xray() {
     info "正在检查最新版本..."
     local current_version latest_version
     current_version=$("$xray_binary_path" version 2>/dev/null | head -n 1 | awk '{print $2}')
+
+    # 版本策略：默认稳定版 XRAY_PINNED_VERSION，菜单可选官方最新版（见 XRAY_PINNED_VERSION 说明）；
+    # XRAY_VERSION_OVERRIDE=vX.Y.Z 时直接安装该版本(可降级)，=latest 时走下方跟随官方最新版的原逻辑。
+    local target_version choose_status=0
+    if [[ "${XRAY_VERSION_OVERRIDE:-}" != latest ]]; then
+        xray_choose_version update "$current_version" || choose_status=$?
+        case "$choose_status" in
+            0) ;;
+            2) success "保持当前版本 ${current_version}，未更新。"; return ;;
+            *) return 1 ;;
+        esac
+        target_version="${xray_chosen_version#v}"
+        info "当前版本: ${cyan}${current_version}${none}，目标版本: ${cyan}${target_version}${none}"
+        if [[ "$current_version" == "$target_version" ]]; then
+            success "已是 ${target_version}，无需更新。"
+            return
+        fi
+        info "开始安装 Xray ${target_version}..."
+        if ! run_core_install; then
+            error "Xray 更新失败！"
+            return 1
+        fi
+        if ! restart_xray; then return 1; fi
+        success "Xray 已更新到 ${target_version}。"
+        xray_newer_version_notice
+        return
+    fi
+    xray_chosen_version=""
 
     # 尝试多种方式获取最新版本
     latest_version=$(curl -s --max-time 10 https://api.github.com/repos/XTLS/Xray-core/releases/latest 2>/dev/null | jq -r '.tag_name' 2>/dev/null | sed 's/v//' || echo "")
@@ -14055,7 +14258,9 @@ view_all_info() {
 
             link_name_raw="$node_name"
             link_name_encoded=$(echo "$link_name_raw" | sed 's/ /%20/g')
-            vless_url="vless://${uuid}@${display_ip}:${port}?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&sni=${domain}&fp=chrome&pbk=${public_key}&sid=${shortid}#${link_name_encoded}"
+            # support-x25519mlkem768=true：mihomo 默认从握手里去掉 X25519MLKEM768，而 Xray v26.10.21 起的
+            # REALITY 会拒绝不带它的握手；mihomo v1.19.31+ 导入链接时读取该参数，其他客户端忽略。
+            vless_url="vless://${uuid}@${display_ip}:${port}?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&sni=${domain}&fp=chrome&pbk=${public_key}&sid=${shortid}&support-x25519mlkem768=true#${link_name_encoded}"
             links_array+=("$vless_url")
 
             if [[ "$is_quiet" = false ]]; then
@@ -14640,6 +14845,7 @@ run_install_vless() {
 
     success "VLESS-Reality 安装成功！"
     view_all_info
+    xray_newer_version_notice
 }
 
 run_install_ss() {
@@ -14657,6 +14863,7 @@ run_install_ss() {
 
     success "Shadowsocks-2022 安装成功！"
     view_all_info
+    xray_newer_version_notice
 }
 
 run_install_dual() {
@@ -14679,6 +14886,7 @@ run_install_dual() {
 
     success "双协议安装成功！"
     view_all_info
+    xray_newer_version_notice
 }
 
 # --- 主菜单与脚本入口 ---
